@@ -8,6 +8,7 @@ import PrivateRoute from './components/PrivateRoute';
 
 // Páginas
 import Login from './pages/login';
+import Register from './pages/register';
 import Home from './pages/home';
 import WebhookList from './pages/webhooks';
 import FormsList from './pages/forms';
@@ -21,8 +22,9 @@ function App() {
       <AuthProvider>
         <Router>
           <Routes>
-            {/* Rota pública para Login */}
+            {/* Rotas públicas */}
             <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
             
             {/* Rotas privadas */}
             <Route element={<PrivateRoute />}>

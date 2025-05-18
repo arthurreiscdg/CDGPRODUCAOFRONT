@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import styled from 'styled-components';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
@@ -7,6 +7,7 @@ import * as Yup from 'yup';
 import Input from '../../components/Input';
 import Button from '../../components/Button';
 import { useAuth } from '../../contexts/AuthContext';
+import { theme } from '../../styles/theme';
 
 const LoginContainer = styled.div`
   display: flex;
@@ -53,7 +54,6 @@ const Login = () => {
   const { signIn } = useAuth();
   const navigate = useNavigate();
   const [loginError, setLoginError] = useState(null);
-
   const formik = useFormik({
     initialValues: {
       email: '',
@@ -67,11 +67,17 @@ const Login = () => {
         .required('Senha é obrigatória'),
     }),
     onSubmit: async (values) => {
-      const response = await signIn(values);
-      if (response.success) {
-        navigate('/');
-      } else {
-        setLoginError(response.error);
+      setLoginError(null); // Limpa erros anteriores
+      try {
+        const response = await signIn(values);
+        if (response.success) {
+          navigate('/');
+        } else {
+          setLoginError(response.error);
+        }
+      } catch (error) {
+        setLoginError('Erro de conexão com o servidor. Tente novamente.');
+        console.error('Erro de login:', error);
       }
     },
   });
@@ -106,9 +112,7 @@ const Login = () => {
             onChange={formik.handleChange}
             onBlur={formik.handleBlur}
             error={formik.touched.password && formik.errors.password}
-          />
-
-          <Button
+          />          <Button
             type="submit"
             fullWidth
             disabled={formik.isSubmitting}
@@ -116,6 +120,10 @@ const Login = () => {
             {formik.isSubmitting ? 'Entrando...' : 'Entrar'}
           </Button>
         </Form>
+        
+        <p style={{textAlign: 'center', marginTop: '1.5rem'}}>
+          Não possui uma conta? <Link to="/register" style={{color: theme.colors.primary}}>Cadastre-se</Link>
+        </p>
       </LoginCard>
     </LoginContainer>
   );

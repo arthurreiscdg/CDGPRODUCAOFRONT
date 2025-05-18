@@ -13,8 +13,15 @@ export const AuthProvider = ({ children }) => {
       const storedToken = localStorage.getItem('@CDGProducao:token');
 
       if (storedUser && storedToken) {
-        api.defaults.headers.authorization = `Bearer ${storedToken}`;
-        setUser(JSON.parse(storedUser));
+        try {
+          // Verificar se o token ainda é válido
+          const response = await api.get('/auth/user/');
+          setUser(response.data);
+        } catch (error) {
+          // Se houver erro, limpar armazenamento local
+          localStorage.removeItem('@CDGProducao:user');
+          localStorage.removeItem('@CDGProducao:token');
+        }
       }
       
       setLoading(false);
@@ -25,33 +32,37 @@ export const AuthProvider = ({ children }) => {
 
   const signIn = async (credentials) => {
     try {
-      // Substitua pela sua URL de API real
-      const response = await api.post('/sessions', credentials);
+      const response = await api.post('/auth/login/', {
+        username: credentials.email, // Estamos usando o email como username
+        password: credentials.password
+      });
 
-      const { token, user: userData } = response.data;
+      const { user: userData, token } = response.data;
       
       localStorage.setItem('@CDGProducao:user', JSON.stringify(userData));
       localStorage.setItem('@CDGProducao:token', token);
-      
-      api.defaults.headers.authorization = `Bearer ${token}`;
       
       setUser(userData);
       return { success: true };
     } catch (error) {
       return { 
         success: false, 
-        error: error.response?.data?.message || 'Erro ao fazer login. Verifique suas credenciais.'
+        error: error.response?.data?.detail || error.response?.data?.non_field_errors?.[0] || 'Erro ao fazer login. Verifique suas credenciais.'
       };
     }
   };
-
-  const signOut = () => {
-    localStorage.removeItem('@CDGProducao:user');
-    localStorage.removeItem('@CDGProducao:token');
-    
-    api.defaults.headers.authorization = null;
-    
-    setUser(null);
+  const signOut = async () => {
+    try {
+      // Chamar o endpoint de logout do backend
+      await api.post('/auth/logout/');
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error);
+    } finally {
+      // Remover dados do localStorage e estado independente do resultado da chamada de API
+      localStorage.removeItem('@CDGProducao:user');
+      localStorage.removeItem('@CDGProducao:token');
+      setUser(null);
+    }
   };
   
   return (

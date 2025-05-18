@@ -1,12 +1,24 @@
 import axios from 'axios';
 
 const api = axios.create({
-  // Substitua pela URL da sua API
-  baseURL: 'http://localhost:3333',
+  // URL da API Django
+  baseURL: 'http://localhost:8000/api',
   headers: {
     'Content-Type': 'application/json',
   },
 });
+
+// Adiciona token de autenticação em todas as requisições
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('@CDGProducao:token');
+    if (token) {
+      config.headers.Authorization = `Token ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
 // Interceptor para tratamento de erros
 api.interceptors.response.use(
@@ -17,6 +29,7 @@ api.interceptors.response.use(
       localStorage.removeItem('@CDGProducao:user');
       localStorage.removeItem('@CDGProducao:token');
       // O redirecionamento pode ser feito aqui ou no componente
+      window.location.href = '/login';
     }
     
     return Promise.reject(error);
