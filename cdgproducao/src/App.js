@@ -1,24 +1,45 @@
-import logo from './logo.svg';
-import './App.css';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ThemeProvider } from 'styled-components';
+import { theme } from './styles/theme';
+import GlobalStyles from './styles/globalStyles';
+import { AuthProvider } from './contexts/AuthContext';
+import PrivateRoute from './components/PrivateRoute';
+
+// Páginas
+import Login from './pages/login';
+import Home from './pages/home';
+import WebhookList from './pages/webhooks';
+import FormsList from './pages/forms';
+import FormEditor from './pages/forms/FormEditor';
+import FormSubmissions from './pages/forms/FormSubmissions';
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <ThemeProvider theme={theme}>
+      <GlobalStyles />
+      <AuthProvider>
+        <Router>
+          <Routes>
+            {/* Rota pública para Login */}
+            <Route path="/login" element={<Login />} />
+            
+            {/* Rotas privadas */}
+            <Route element={<PrivateRoute />}>
+              <Route path="/" element={<Home />} />
+              <Route path="/webhooks" element={<WebhookList />} />
+              <Route path="/forms" element={<FormsList />} />
+              <Route path="/forms/new" element={<FormEditor />} />
+              <Route path="/forms/:id/edit" element={<FormEditor />} />
+              <Route path="/forms/:id/submissions" element={<FormSubmissions />} />
+            </Route>
+            
+            {/* Redirecionar qualquer rota não encontrada para a home */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Router>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 
