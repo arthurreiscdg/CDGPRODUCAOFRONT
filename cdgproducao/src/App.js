@@ -12,8 +12,13 @@ import Register from './pages/register';
 import Home from './pages/home';
 import WebhookList from './pages/webhooks';
 import FormsList from './pages/forms';
-import FormEditor from './pages/forms/FormEditor';
 import FormSubmissions from './pages/forms/FormSubmissions';
+
+// Formulários específicos
+import ZeroHumForm from './pages/forms/zerohum';
+import EliteForm from './pages/forms/elite';
+import ColeguiumForm from './pages/forms/coleguium';
+import PensiForm from './pages/forms/pensi';
 
 function App() {
   return (
@@ -31,8 +36,10 @@ function App() {
               <Route path="/" element={<Home />} />
               <Route path="/webhooks" element={<WebhookList />} />
               <Route path="/forms" element={<FormsList />} />
-              <Route path="/forms/new" element={<FormEditor />} />
-              <Route path="/forms/:id/edit" element={<FormEditor />} />
+              <Route path="/forms/zerohum" element={<ZeroHumForm />} />
+              <Route path="/forms/elite" element={<EliteForm />} />
+              <Route path="/forms/coleguium" element={<ColeguiumForm />} />
+              <Route path="/forms/pensi" element={<PensiForm />} />
               <Route path="/forms/:id/submissions" element={<FormSubmissions />} />
             </Route>
             
