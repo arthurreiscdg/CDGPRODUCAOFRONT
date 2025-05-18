@@ -179,7 +179,7 @@ const WebhookList = () => {
     
     try {
       setStatusUpdateLoading(true);
-      const response = await api.post("/webhooks/pedidos/status/batch/", {
+      const response = await api.post("/webhooks/pedidos/status/lote/", {
         pedido_ids: selectedPedidos,
         status_id: selectedStatusBatch
       });
