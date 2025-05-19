@@ -4,8 +4,10 @@ import MainLayout from "../../components/MainLayout";
 import Table from "../../components/Table";
 import Card, { CardHeader, CardTitle } from "../../components/Card";
 import api from "../../services/api";
-import { Button, Modal } from "react-bootstrap";
+import { Button, Modal, Form, Row, Col } from "react-bootstrap";
 import { formatCurrency } from "../../utils/format";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faSearch, faFilter, faTimes } from '@fortawesome/free-solid-svg-icons';
 
 const PageHeader = styled.div`
   display: flex;
@@ -112,6 +114,85 @@ const ImagePreview = styled.img`
   margin-top: 0.5rem;
 `;
 
+const FilterContainer = styled.div`
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  padding: 1rem;
+`;
+
+const FilterHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: ${({ expanded }) => expanded ? '1rem' : '0'};
+  cursor: pointer;
+`;
+
+const FilterTitle = styled.h5`
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+`;
+
+const FilterBody = styled.div`
+  display: ${({ show }) => show ? 'block' : 'none'};
+`;
+
+const FilterRow = styled(Row)`
+  margin-bottom: 1rem;
+`;
+
+const FilterActions = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+`;
+
+const FilterBadge = styled.span`
+  display: inline-block;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 1rem;
+  background-color: #007bff;
+  color: white;
+  margin-left: 0.5rem;
+`;
+
+const ActiveFilterBadge = styled.span`
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  margin-right: 0.5rem;
+  margin-bottom: 0.5rem;
+  background-color: #e9f5ff;
+  color: #0066cc;
+  border: 1px solid #b3d7ff;
+  border-radius: 1rem;
+  font-size: 0.75rem;
+
+  .close {
+    margin-left: 0.5rem;
+    cursor: pointer;
+    font-weight: bold;
+  }
+`;
+
+const ActiveFiltersContainer = styled.div`
+  margin-bottom: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+
+  .title {
+    font-weight: 600;
+    margin-right: 0.5rem;
+    color: #666;
+  }
+`;
+
 const WebhookList = () => {
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -122,16 +203,51 @@ const WebhookList = () => {
   const [selectedStatusBatch, setSelectedStatusBatch] = useState("");
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [statusUpdateLoading, setStatusUpdateLoading] = useState(false);
+  
+  // Estados para os filtros
+  const [filters, setFilters] = useState({
+    status: "",
+    sku: "",
+    numero_pedido: "",
+    data_especifica: "",
+    data_inicio: "",
+    data_fim: ""
+  });
+  const [showFilters, setShowFilters] = useState(false);
+  const [appliedFilters, setAppliedFilters] = useState(false);
 
   useEffect(() => {
-    fetchPedidos();
+    fetchPedidos({});
     fetchStatusList();
   }, []);
   
-  const fetchPedidos = async () => {
+  const fetchPedidos = async (filterParams = {}) => {
     try {
       setLoading(true);
-      const response = await api.get("/webhooks/pedidos/");
+      
+      // Construir os parâmetros de consulta para a API
+      const queryParams = new URLSearchParams();
+      
+      // Adiciona os filtros aos parâmetros da consulta
+      if (filterParams.status) queryParams.append('status', filterParams.status);
+      if (filterParams.sku) queryParams.append('sku', filterParams.sku);
+      if (filterParams.numero_pedido) queryParams.append('numero_pedido', filterParams.numero_pedido);
+      if (filterParams.data_especifica) {
+        // Se data específica estiver preenchida, usar o mesmo valor para início e fim
+        const formattedDate = formatDateForAPI(filterParams.data_especifica);
+        queryParams.append('data_inicio', formattedDate);
+        queryParams.append('data_fim', formattedDate);
+      } else {
+        // Caso contrário, usar o intervalo de datas, se fornecido
+        if (filterParams.data_inicio) queryParams.append('data_inicio', formatDateForAPI(filterParams.data_inicio));
+        if (filterParams.data_fim) queryParams.append('data_fim', formatDateForAPI(filterParams.data_fim));
+      }
+      
+      const url = queryParams.toString() 
+        ? `/webhooks/pedidos/?${queryParams.toString()}` 
+        : "/webhooks/pedidos/";
+        
+      const response = await api.get(url);
       console.log("Dados recebidos da API:", response.data);
       setPedidos(response.data.results);
       setLoading(false);
@@ -159,8 +275,8 @@ const WebhookList = () => {
       await api.patch(`/webhooks/pedidos/${pedidoId}/status/`, {
         status_id: statusId
       });
-      // Atualiza a lista de pedidos após a alteração
-      await fetchPedidos();
+      // Atualiza a lista de pedidos após a alteração, mantendo os filtros aplicados
+      await fetchPedidos(appliedFilters ? filters : {});
       setStatusUpdateLoading(false);
       return true;
     } catch (error) {
@@ -186,11 +302,11 @@ const WebhookList = () => {
       
       if (response.data.sucesso) {
         alert(`${response.data.atualizados} pedidos atualizados com sucesso.`);
-        // Limpa seleções e atualiza lista
+        // Limpa seleções e atualiza lista, mantendo os filtros aplicados
         setSelectedPedidos([]);
         setSelectedStatusBatch("");
         setShowStatusModal(false);
-        await fetchPedidos();
+        await fetchPedidos(appliedFilters ? filters : {});
       } else {
         alert(`Erro: ${response.data.mensagem}`);
       }
@@ -260,6 +376,180 @@ const WebhookList = () => {
     }
     const date = new Date(dateString);
     return date.toLocaleDateString("pt-BR") + " " + date.toLocaleTimeString("pt-BR");
+  };
+
+  // Função para formatar data para a API (formato YYYY-MM-DD)
+  const formatDateForAPI = (dateString) => {
+    if (!dateString) return "";
+    
+    // Se já estiver no formato YYYY-MM-DD, retorna como está
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+      return dateString;
+    }
+    
+    // Converte de DD/MM/YYYY para YYYY-MM-DD
+    const parts = dateString.split('/');
+    if (parts.length === 3) {
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    
+    // Tenta converter de formato de data para YYYY-MM-DD
+    try {
+      const date = new Date(dateString);
+      return date.toISOString().split('T')[0];
+    } catch (e) {
+      console.error("Erro ao converter data:", e);
+      return dateString;
+    }
+  };
+
+  // Função para manipular alterações nos filtros
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    
+    // Limpa o outro campo de data se estiver manipulando um campo de data específica
+    if (name === 'data_especifica' && value) {
+      setFilters(prev => ({
+        ...prev,
+        [name]: value,
+        data_inicio: "",
+        data_fim: ""
+      }));
+    } 
+    // Limpa o campo de data específica se estiver manipulando um intervalo de datas
+    else if ((name === 'data_inicio' || name === 'data_fim') && value) {
+      setFilters(prev => ({
+        ...prev,
+        [name]: value,
+        data_especifica: ""
+      }));
+    } 
+    // Caso contrário, apenas atualiza o campo normalmente
+    else {
+      setFilters(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
+  };
+
+  // Função para aplicar os filtros
+  const applyFilters = () => {
+    fetchPedidos(filters);
+    setAppliedFilters(true);
+  };
+
+  // Função para limpar todos os filtros
+  const clearFilters = () => {
+    setFilters({
+      status: "",
+      sku: "",
+      numero_pedido: "",
+      data_especifica: "",
+      data_inicio: "",
+      data_fim: ""
+    });
+    fetchPedidos({});
+    setAppliedFilters(false);
+  };
+
+  // Função para obter o nome de um status pelo ID
+  const getStatusNameById = (statusId) => {
+    const status = statusList.find(s => s.id.toString() === statusId.toString());
+    return status ? status.nome : "Status Desconhecido";
+  };
+
+  // Renderiza os filtros ativos
+  const renderActiveFilters = () => {
+    if (!appliedFilters) return null;
+    
+    const activeFilters = [];
+    
+    if (filters.status) {
+      activeFilters.push(
+        <ActiveFilterBadge key="status">
+          Status: {getStatusNameById(filters.status)}
+          <span className="close" onClick={() => {
+            setFilters(prev => ({ ...prev, status: "" }));
+            applyFilters();
+          }}>×</span>
+        </ActiveFilterBadge>
+      );
+    }
+    
+    if (filters.sku) {
+      activeFilters.push(
+        <ActiveFilterBadge key="sku">
+          SKU: {filters.sku}
+          <span className="close" onClick={() => {
+            setFilters(prev => ({ ...prev, sku: "" }));
+            applyFilters();
+          }}>×</span>
+        </ActiveFilterBadge>
+      );
+    }
+    
+    if (filters.numero_pedido) {
+      activeFilters.push(
+        <ActiveFilterBadge key="numero_pedido">
+          Número do Pedido: {filters.numero_pedido}
+          <span className="close" onClick={() => {
+            setFilters(prev => ({ ...prev, numero_pedido: "" }));
+            applyFilters();
+          }}>×</span>
+        </ActiveFilterBadge>
+      );
+    }
+    
+    if (filters.data_especifica) {
+      activeFilters.push(
+        <ActiveFilterBadge key="data_especifica">
+          Data: {new Date(filters.data_especifica).toLocaleDateString('pt-BR')}
+          <span className="close" onClick={() => {
+            setFilters(prev => ({ ...prev, data_especifica: "" }));
+            applyFilters();
+          }}>×</span>
+        </ActiveFilterBadge>
+      );
+    } else {
+      if (filters.data_inicio) {
+        activeFilters.push(
+          <ActiveFilterBadge key="data_inicio">
+            Data Início: {new Date(filters.data_inicio).toLocaleDateString('pt-BR')}
+            <span className="close" onClick={() => {
+              setFilters(prev => ({ ...prev, data_inicio: "" }));
+              applyFilters();
+            }}>×</span>
+          </ActiveFilterBadge>
+        );
+      }
+      
+      if (filters.data_fim) {
+        activeFilters.push(
+          <ActiveFilterBadge key="data_fim">
+            Data Fim: {new Date(filters.data_fim).toLocaleDateString('pt-BR')}
+            <span className="close" onClick={() => {
+              setFilters(prev => ({ ...prev, data_fim: "" }));
+              applyFilters();
+            }}>×</span>
+          </ActiveFilterBadge>
+        );
+      }
+    }
+    
+    if (activeFilters.length === 0) {
+      return null;
+    }
+    
+    return (
+      <ActiveFiltersContainer>
+        <span className="title">Filtros ativos:</span>
+        {activeFilters}
+        <Button size="sm" variant="outline-secondary" onClick={clearFilters}>
+          <FontAwesomeIcon icon={faTimes} /> Limpar todos
+        </Button>
+      </ActiveFiltersContainer>
+    );
   };
 
   const columns = [
@@ -364,7 +654,118 @@ const WebhookList = () => {
     <MainLayout>
       <PageHeader>
         <PageTitle>Listagem de Pedidos</PageTitle>
+        <Button 
+          variant="outline-secondary"
+          onClick={() => setShowFilters(!showFilters)}
+        >
+          <FontAwesomeIcon icon={faFilter} /> Filtros
+          {appliedFilters && <FilterBadge>!</FilterBadge>}
+        </Button>
       </PageHeader>
+
+      {/* Área de Filtros */}
+      <FilterContainer style={{ display: showFilters ? 'block' : 'none' }}>
+        <FilterHeader expanded={true}>
+          <FilterTitle>
+            <FontAwesomeIcon icon={faFilter} /> Filtrar Pedidos
+          </FilterTitle>
+        </FilterHeader>
+        <FilterBody show={true}>
+          <Form>
+            <FilterRow>
+              <Col md={4}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Status</Form.Label>
+                  <Form.Select 
+                    name="status"
+                    value={filters.status}
+                    onChange={handleFilterChange}
+                  >
+                    <option value="">Todos os status</option>
+                    {statusList.map((status) => (
+                      <option key={status.id} value={status.id}>
+                        {status.nome}
+                      </option>
+                    ))}
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+              <Col md={4}>
+                <Form.Group className="mb-3">
+                  <Form.Label>SKU do Produto</Form.Label>
+                  <Form.Control 
+                    type="text" 
+                    placeholder="Digite o SKU" 
+                    name="sku"
+                    value={filters.sku}
+                    onChange={handleFilterChange}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={4}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Número do Pedido</Form.Label>
+                  <Form.Control 
+                    type="text" 
+                    placeholder="Digite o número" 
+                    name="numero_pedido"
+                    value={filters.numero_pedido}
+                    onChange={handleFilterChange}
+                  />
+                </Form.Group>
+              </Col>
+            </FilterRow>
+            <FilterRow>
+              <Col md={4}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Data Específica</Form.Label>
+                  <Form.Control 
+                    type="date" 
+                    name="data_especifica"
+                    value={filters.data_especifica}
+                    onChange={handleFilterChange}
+                    disabled={filters.data_inicio || filters.data_fim}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={4}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Data Início</Form.Label>
+                  <Form.Control 
+                    type="date" 
+                    name="data_inicio"
+                    value={filters.data_inicio}
+                    onChange={handleFilterChange}
+                    disabled={filters.data_especifica}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={4}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Data Fim</Form.Label>
+                  <Form.Control 
+                    type="date" 
+                    name="data_fim"
+                    value={filters.data_fim}
+                    onChange={handleFilterChange}
+                    disabled={filters.data_especifica}
+                  />
+                </Form.Group>
+              </Col>
+            </FilterRow>
+            <FilterActions>
+              <Button variant="secondary" onClick={clearFilters}>
+                <FontAwesomeIcon icon={faTimes} /> Limpar Filtros
+              </Button>
+              <Button variant="primary" onClick={applyFilters}>
+                <FontAwesomeIcon icon={faSearch} /> Aplicar Filtros
+              </Button>
+            </FilterActions>
+          </Form>
+        </FilterBody>
+      </FilterContainer>
+
+      {renderActiveFilters()}
 
       <Card>
         <CardHeader>
