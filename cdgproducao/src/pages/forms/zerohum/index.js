@@ -129,22 +129,31 @@ const ZeroHumForm = () => {
       cor_impressao: 'PB',
       impressao: '1_LADO'
     },
-    validationSchema,
-    onSubmit: async (values) => {
+    validationSchema,    onSubmit: async (values) => {
       setLoading(true);
       try {
         const formData = new FormData();
         
+        // Formatar a data para o formato esperado pelo Django (YYYY-MM-DD)
+        const formattedValues = {
+          ...values,
+          data_entrega: values.data_entrega ? new Date(values.data_entrega).toISOString().split('T')[0] : ''
+        };
+        
         // Adicionar todos os campos do formulário ao FormData
-        Object.keys(values).forEach(key => {
-          formData.append(key, values[key]);
-        });
-          // Adicionar o arquivo PDF se existir
+        Object.keys(formattedValues).forEach(key => {
+          formData.append(key, formattedValues[key]);
+        });// Adicionar o arquivo PDF se existir
         if (arquivo) {
           formData.append('arquivo', arquivo);
+        }        // Mostrar dados que estão sendo enviados (para depuração)
+        console.log('Enviando dados para o backend:');
+        for (let [key, value] of formData.entries()) {
+          console.log(`${key}: ${value}`);
         }
+        
         // Enviar para a API
-        const response = await api.post('/api/zerohum/', formData, {
+        const response = await api.post('/formularios/zerohum/', formData, {
           headers: {
             'Content-Type': 'multipart/form-data'
           }
@@ -155,10 +164,29 @@ const ZeroHumForm = () => {
         setTimeout(() => {
           setSaved(false);
           navigate('/forms');
-        }, 3000);
-      } catch (error) {
+        }, 3000);      } catch (error) {
         console.error("Erro ao salvar formulário:", error);
-        alert('Erro ao enviar o formulário. Por favor, tente novamente.');
+        
+        // Mostrar mensagem de erro mais detalhada, se disponível
+        let errorMessage = 'Erro ao enviar o formulário. Por favor, tente novamente.';
+        
+        if (error.response) {
+          // O servidor respondeu com um status de erro
+          console.error('Dados da resposta de erro:', error.response.data);
+          console.error('Status do erro:', error.response.status);
+          
+          if (error.response.data && error.response.data.errors) {
+            const errorDetails = Object.entries(error.response.data.errors)
+              .map(([field, errors]) => `${field}: ${errors.join(', ')}`)
+              .join('\n');
+            
+            errorMessage = `Erro na validação dos dados: \n${errorDetails}`;
+          } else if (error.response.data && error.response.data.detail) {
+            errorMessage = error.response.data.detail;
+          }
+        }
+        
+        alert(errorMessage);
       } finally {
         setLoading(false);
       }
