@@ -1,43 +1,119 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import styled from 'styled-components';
+import MainLayout from '../../../components/MainLayout';
+import Card, { CardHeader, CardTitle, CardBody, CardFooter } from '../../../components/Card';
+import Button from '../../../components/Button';
+import Input from '../../../components/Input';
+import api from '../../../services/api';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
-import api from '../../../services/api';
 
-const formatos = [
-  { value: 'A4', label: 'A4' },
-  { value: 'A5', label: 'A5' },
-  { value: 'A3', label: 'A3' },
-  { value: 'CARTA', label: 'Carta' },
-  { value: 'OFICIO', label: 'Ofício' },
-  { value: 'OUTRO', label: 'Outro' },
-];
-const cores = [
-  { value: 'PB', label: 'Preto e Branco' },
-  { value: 'COLOR', label: 'Colorido' },
-];
-const impressoes = [
-  { value: '1_LADO', label: 'Um lado' },
-  { value: '2_LADOS', label: 'Frente e verso' },
-  { value: 'LIVRETO', label: 'Livreto' },
-];
+const PageHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+`;
+
+const PageTitle = styled.h1`
+  font-size: 1.75rem;
+  margin: 0;
+`;
+
+const Form = styled.form`
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+`;
+
+const FormRow = styled.div`
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  
+  > * {
+    flex: 1;
+    min-width: 250px;
+  }
+`;
+
+const FormGroup = styled.div`
+  margin-bottom: 1rem;
+`;
+
+const FormLabel = styled.label`
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+`;
+
+// Componente Select personalizado
+const Select = styled.select`
+  width: 100%;
+  padding: 0.75rem;
+  font-size: 1rem;
+  border: 1px solid ${props => props.error ? 'red' : '#ddd'};
+  border-radius: 4px;
+  background-color: white;
+  transition: border-color 0.2s;
+  
+  &:focus {
+    border-color: ${props => props.theme.primary};
+    outline: none;
+  }
+`;
+
+// Componente para upload de arquivos
+const FileInput = styled.div`
+  margin-bottom: 1rem;
+  
+  input[type="file"] {
+    display: block;
+    margin-top: 0.5rem;
+    width: 100%;
+  }
+  
+  .error-text {
+    color: red;
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+  }
+`;
+
+const TextArea = styled.textarea`
+  width: 100%;
+  padding: 0.75rem;
+  font-size: 1rem;
+  border: 1px solid ${props => props.error ? 'red' : '#ddd'};
+  border-radius: 4px;
+  min-height: 100px;
+  resize: vertical;
+  transition: border-color 0.2s;
+  
+  &:focus {
+    border-color: ${props => props.theme.primary};
+    outline: none;
+  }
+`;
 
 const ZeroHumForm = () => {
-  const [selectedFile, setSelectedFile] = useState(null);
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [error, setError] = useState(null);
+  const [arquivo, setArquivo] = useState(null);
 
   const validationSchema = Yup.object({
     nome: Yup.string().required('Nome é obrigatório'),
     email: Yup.string().email('E-mail inválido').required('E-mail é obrigatório'),
     unidade_nome: Yup.string().required('Nome da unidade é obrigatório'),
-    unidade_quantidade: Yup.number().positive('Quantidade deve ser positiva').required('Quantidade é obrigatória'),
+    unidade_quantidade: Yup.number().integer('Deve ser um número inteiro').positive('Deve ser positivo').required('Quantidade é obrigatória'),
     titulo: Yup.string().required('Título é obrigatório'),
-    data_entrega: Yup.date().required('Data de entrega é obrigatória'),
-    observacoes: Yup.string(),
+    data_entrega: Yup.date().required('Data de entrega é obrigatória').min(new Date(), 'A data de entrega não pode ser anterior a hoje'),
     formato: Yup.string().required('Formato é obrigatório'),
     cor_impressao: Yup.string().required('Cor de impressão é obrigatória'),
     impressao: Yup.string().required('Tipo de impressão é obrigatório'),
+    observacoes: Yup.string()
   });
 
   const formik = useFormik({
@@ -51,107 +127,282 @@ const ZeroHumForm = () => {
       observacoes: '',
       formato: 'A4',
       cor_impressao: 'PB',
-      impressao: '1_LADO',
+      impressao: '1_LADO'
     },
     validationSchema,
     onSubmit: async (values) => {
       setLoading(true);
-      setError(null);
       try {
         const formData = new FormData();
+        
+        // Adicionar todos os campos do formulário ao FormData
         Object.keys(values).forEach(key => {
           formData.append(key, values[key]);
         });
-        if (selectedFile) {
-          formData.append('arquivo', selectedFile);
+          // Adicionar o arquivo PDF se existir
+        if (arquivo) {
+          formData.append('arquivo', arquivo);
         }
-        await api.post('/api/zerohum/', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
+        // Enviar para a API
+        const response = await api.post('/api/zerohum/', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
         });
+        
+        console.log('Formulário enviado com sucesso:', response.data);
         setSaved(true);
-        setSelectedFile(null);
-        setTimeout(() => setSaved(false), 3000);
-        formik.resetForm();
+        setTimeout(() => {
+          setSaved(false);
+          navigate('/forms');
+        }, 3000);
       } catch (error) {
-        setError(error.response?.data?.message || 'Ocorreu um erro ao enviar o formulário. Por favor, tente novamente.');
+        console.error("Erro ao salvar formulário:", error);
+        alert('Erro ao enviar o formulário. Por favor, tente novamente.');
       } finally {
         setLoading(false);
       }
     }
   });
 
+  // Handler para upload de arquivo
   const handleFileChange = (event) => {
-    setSelectedFile(event.currentTarget.files[0]);
+    const file = event.target.files[0];
+    if (file) {
+      // Validar se é um PDF
+      if (file.type !== 'application/pdf') {
+        alert('Por favor, envie apenas arquivos PDF.');
+        return;
+      }
+      setArquivo(file);
+    }
   };
 
   return (
-    <div style={{ maxWidth: 600, margin: '0 auto' }}>
-      <h2>Formulário ZeroHum</h2>
-      <form onSubmit={formik.handleSubmit}>
+    <MainLayout>
+      <PageHeader>
+        <PageTitle>Formulário ZeroHum</PageTitle>
         <div>
-          <label>Nome*</label>
-          <input name="nome" value={formik.values.nome} onChange={formik.handleChange} onBlur={formik.handleBlur} />
-          {formik.touched.nome && formik.errors.nome && <div style={{ color: 'red' }}>{formik.errors.nome}</div>}
+          <Button variant="outlined" onClick={() => navigate('/forms')} style={{ marginRight: '1rem' }}>
+            Voltar
+          </Button>
+          <Button 
+            type="button" 
+            onClick={() => formik.handleSubmit()}
+            disabled={loading}
+          >
+            {loading ? 'Salvando...' : 'Salvar'}
+          </Button>
         </div>
-        <div>
-          <label>Email*</label>
-          <input name="email" type="email" value={formik.values.email} onChange={formik.handleChange} onBlur={formik.handleBlur} />
-          {formik.touched.email && formik.errors.email && <div style={{ color: 'red' }}>{formik.errors.email}</div>}
-        </div>
-        <div>
-          <label>Unidade*</label>
-          <input name="unidade_nome" value={formik.values.unidade_nome} onChange={formik.handleChange} onBlur={formik.handleBlur} />
-          {formik.touched.unidade_nome && formik.errors.unidade_nome && <div style={{ color: 'red' }}>{formik.errors.unidade_nome}</div>}
-        </div>
-        <div>
-          <label>Quantidade*</label>
-          <input name="unidade_quantidade" type="number" min="1" value={formik.values.unidade_quantidade} onChange={formik.handleChange} onBlur={formik.handleBlur} />
-          {formik.touched.unidade_quantidade && formik.errors.unidade_quantidade && <div style={{ color: 'red' }}>{formik.errors.unidade_quantidade}</div>}
-        </div>
-        <div>
-          <label>Título*</label>
-          <input name="titulo" value={formik.values.titulo} onChange={formik.handleChange} onBlur={formik.handleBlur} />
-          {formik.touched.titulo && formik.errors.titulo && <div style={{ color: 'red' }}>{formik.errors.titulo}</div>}
-        </div>
-        <div>
-          <label>Data de Entrega*</label>
-          <input name="data_entrega" type="date" value={formik.values.data_entrega} onChange={formik.handleChange} onBlur={formik.handleBlur} />
-          {formik.touched.data_entrega && formik.errors.data_entrega && <div style={{ color: 'red' }}>{formik.errors.data_entrega}</div>}
-        </div>
-        <div>
-          <label>Observações</label>
-          <textarea name="observacoes" value={formik.values.observacoes} onChange={formik.handleChange} onBlur={formik.handleBlur} />
-        </div>
-        <div>
-          <label>Formato*</label>
-          <select name="formato" value={formik.values.formato} onChange={formik.handleChange} onBlur={formik.handleBlur}>
-            {formatos.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
-          </select>
-          {formik.touched.formato && formik.errors.formato && <div style={{ color: 'red' }}>{formik.errors.formato}</div>}
-        </div>
-        <div>
-          <label>Cor de Impressão*</label>
-          <select name="cor_impressao" value={formik.values.cor_impressao} onChange={formik.handleChange} onBlur={formik.handleBlur}>
-            {cores.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-          </select>
-          {formik.touched.cor_impressao && formik.errors.cor_impressao && <div style={{ color: 'red' }}>{formik.errors.cor_impressao}</div>}
-        </div>
-        <div>
-          <label>Tipo de Impressão*</label>
-          <select name="impressao" value={formik.values.impressao} onChange={formik.handleChange} onBlur={formik.handleBlur}>
-            {impressoes.map(i => <option key={i.value} value={i.value}>{i.label}</option>)}
-          </select>
-          {formik.touched.impressao && formik.errors.impressao && <div style={{ color: 'red' }}>{formik.errors.impressao}</div>}
-        </div>
-        <div>
-          <label>Arquivo PDF</label>
-          <input name="arquivo" type="file" accept="application/pdf" onChange={handleFileChange} />
-        </div>
-        <button type="submit" disabled={loading}>{loading ? 'Enviando...' : 'Enviar'}</button>
-        {saved && <div style={{ color: 'green' }}>Formulário enviado com sucesso!</div>}
-        {error && <div style={{ color: 'red' }}>{error}</div>}
-      </form>
-    </div>
+      </PageHeader>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Informações do Formulário</CardTitle>
+        </CardHeader>
+        <CardBody>
+          <Form onSubmit={formik.handleSubmit}>
+            {/* Seção de Contato */}
+            <FormGroup>
+              <FormLabel>Informações de Contato</FormLabel>
+              <FormRow>
+                <Input
+                  id="nome"
+                  name="nome"
+                  label="Nome"
+                  value={formik.values.nome}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  error={formik.touched.nome && formik.errors.nome}
+                  required
+                />
+                <Input
+                  id="email"
+                  name="email"
+                  label="E-mail"
+                  type="email"
+                  value={formik.values.email}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  error={formik.touched.email && formik.errors.email}
+                  required
+                />
+              </FormRow>
+            </FormGroup>
+            
+            {/* Seção Unidade */}
+            <FormGroup>
+              <FormLabel>Informações da Unidade</FormLabel>
+              <FormRow>
+                <Input
+                  id="unidade_nome"
+                  name="unidade_nome"
+                  label="Nome da Unidade"
+                  value={formik.values.unidade_nome}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  error={formik.touched.unidade_nome && formik.errors.unidade_nome}
+                  required
+                />
+                <Input
+                  id="unidade_quantidade"
+                  name="unidade_quantidade"
+                  label="Quantidade"
+                  type="number"
+                  min="1"
+                  value={formik.values.unidade_quantidade}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  error={formik.touched.unidade_quantidade && formik.errors.unidade_quantidade}
+                  required
+                />
+              </FormRow>
+            </FormGroup>
+            
+            {/* Seção de Configuração de Impressão */}
+            <FormGroup>
+              <FormLabel>Configurações de Impressão</FormLabel>
+              <FormRow>
+                <Input
+                  id="titulo"
+                  name="titulo"
+                  label="Título"
+                  value={formik.values.titulo}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  error={formik.touched.titulo && formik.errors.titulo}
+                  required
+                />
+                <Input
+                  id="data_entrega"
+                  name="data_entrega"
+                  label="Data de Entrega"
+                  type="date"
+                  value={formik.values.data_entrega}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  error={formik.touched.data_entrega && formik.errors.data_entrega}
+                  required
+                />
+              </FormRow>
+              
+              <FormRow>
+                <FormGroup>
+                  <FormLabel>Formato</FormLabel>
+                  <Select
+                    id="formato"
+                    name="formato"
+                    value={formik.values.formato}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    error={formik.touched.formato && formik.errors.formato}
+                  >
+                    <option value="A4">A4</option>
+                    <option value="A5">A5</option>
+                    <option value="A3">A3</option>
+                    <option value="CARTA">Carta</option>
+                    <option value="OFICIO">Ofício</option>
+                    <option value="OUTRO">Outro</option>
+                  </Select>
+                  {formik.touched.formato && formik.errors.formato && (
+                    <div className="error-text">{formik.errors.formato}</div>
+                  )}
+                </FormGroup>
+                
+                <FormGroup>
+                  <FormLabel>Cor de Impressão</FormLabel>
+                  <Select
+                    id="cor_impressao"
+                    name="cor_impressao"
+                    value={formik.values.cor_impressao}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    error={formik.touched.cor_impressao && formik.errors.cor_impressao}
+                  >
+                    <option value="PB">Preto e Branco</option>
+                    <option value="COLOR">Colorido</option>
+                  </Select>
+                  {formik.touched.cor_impressao && formik.errors.cor_impressao && (
+                    <div className="error-text">{formik.errors.cor_impressao}</div>
+                  )}
+                </FormGroup>
+                
+                <FormGroup>
+                  <FormLabel>Tipo de Impressão</FormLabel>
+                  <Select
+                    id="impressao"
+                    name="impressao"
+                    value={formik.values.impressao}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    error={formik.touched.impressao && formik.errors.impressao}
+                  >
+                    <option value="1_LADO">Um lado</option>
+                    <option value="2_LADOS">Frente e verso</option>
+                    <option value="LIVRETO">Livreto</option>
+                  </Select>
+                  {formik.touched.impressao && formik.errors.impressao && (
+                    <div className="error-text">{formik.errors.impressao}</div>
+                  )}
+                </FormGroup>
+              </FormRow>
+              
+              <FormGroup>
+                <FormLabel>Observações</FormLabel>
+                <TextArea
+                  id="observacoes"
+                  name="observacoes"
+                  value={formik.values.observacoes}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  error={formik.touched.observacoes && formik.errors.observacoes}
+                  placeholder="Informações adicionais sobre o formulário..."
+                />
+                {formik.touched.observacoes && formik.errors.observacoes && (
+                  <div className="error-text">{formik.errors.observacoes}</div>
+                )}
+              </FormGroup>
+            </FormGroup>
+            
+            {/* Seção de Upload de Arquivo */}
+            <FormGroup>
+              <FormLabel>Upload de Arquivo PDF</FormLabel>
+              <FileInput>
+                <input
+                  type="file"
+                  id="arquivo"
+                  name="arquivo"
+                  accept="application/pdf"
+                  onChange={handleFileChange}
+                />
+                {arquivo && (
+                  <div style={{marginTop: '0.5rem'}}>
+                    Arquivo selecionado: {arquivo.name}
+                  </div>
+                )}
+              </FileInput>
+            </FormGroup>
+          </Form>
+        </CardBody>
+        <CardFooter>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            {saved && <span style={{ color: 'green' }}>Formulário salvo com sucesso!</span>}
+            <div>
+              <Button variant="outlined" onClick={() => navigate('/forms')} style={{ marginRight: '1rem' }}>
+                Cancelar
+              </Button>
+              <Button 
+                type="button" 
+                onClick={() => formik.handleSubmit()}
+                disabled={loading}
+              >
+                {loading ? 'Salvando...' : 'Salvar'}
+              </Button>
+            </div>
+          </div>
+        </CardFooter>
+      </Card>
+    </MainLayout>
   );
 };
 
