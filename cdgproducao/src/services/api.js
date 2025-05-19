@@ -15,6 +15,20 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Token ${token}`;
     }
+    
+    // Depuração para API POST requests
+    if (config.method === 'post') {
+      console.log(`API Request para ${config.url}:`, config.data);
+      
+      // Para dados do tipo FormData, fazer log de cada campo
+      if (config.data instanceof FormData) {
+        console.log('FormData contém:');
+        for (let [key, value] of config.data.entries()) {
+          console.log(`${key}: ${value}`);
+        }
+      }
+    }
+    
     return config;
   },
   (error) => Promise.reject(error)
