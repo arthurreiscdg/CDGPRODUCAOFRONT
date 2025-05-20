@@ -9,136 +9,98 @@ import api from '../../../services/api';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 
-const PageHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
+// Componentes estilizados
+const FormContainer = styled.div`
+  padding: 20px;
 `;
 
-const PageTitle = styled.h1`
-  font-size: 1.75rem;
-  margin: 0;
+const InputGroup = styled.div`
+  margin-bottom: 20px;
 `;
 
-const Form = styled.form`
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-`;
-
-const FormRow = styled.div`
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
-  
-  > * {
-    flex: 1;
-    min-width: 250px;
-  }
-`;
-
-const FormGroup = styled.div`
-  margin-bottom: 1rem;
-`;
-
-const FormLabel = styled.label`
+const Label = styled.label`
   display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 500;
+  margin-bottom: 8px;
+  font-weight: bold;
 `;
 
-// Componente Select personalizado
-const Select = styled.select`
+const SelectField = styled.select`
   width: 100%;
-  padding: 0.75rem;
-  font-size: 1rem;
-  border: 1px solid ${props => props.error ? 'red' : '#ddd'};
+  padding: 10px;
+  border: 1px solid #ddd;
   border-radius: 4px;
-  background-color: white;
-  transition: border-color 0.2s;
-  
-  &:focus {
-    border-color: ${props => props.theme.primary};
-    outline: none;
-  }
-`;
-
-// Componente para upload de arquivos
-const FileInput = styled.div`
-  margin-bottom: 1rem;
-  
-  input[type="file"] {
-    display: block;
-    margin-top: 0.5rem;
-    width: 100%;
-  }
-  
-  .error-text {
-    color: red;
-    font-size: 0.8rem;
-    margin-top: 0.25rem;
-  }
+  font-size: 16px;
+  margin-top: 5px;
 `;
 
 const TextArea = styled.textarea`
   width: 100%;
-  padding: 0.75rem;
-  font-size: 1rem;
-  border: 1px solid ${props => props.error ? 'red' : '#ddd'};
+  padding: 10px;
+  border: 1px solid #ddd;
   border-radius: 4px;
-  min-height: 100px;
+  font-size: 16px;
   resize: vertical;
-  transition: border-color 0.2s;
-  
-  &:focus {
-    border-color: ${props => props.theme.primary};
-    outline: none;
-  }
+  min-height: 100px;
+`;
+
+const ErrorMessage = styled.div`
+  color: red;
+  font-size: 12px;
+  margin-top: 5px;
+`;
+
+const UnidadeContainer = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
 `;
 
 const UnidadeItem = styled.div`
   border: 1px solid #ddd;
   border-radius: 4px;
-  padding: 1rem;
-  margin-bottom: 1rem;
-  background-color: #f9f9f9;
-  position: relative;
-`;
-
-const UnidadeHeader = styled.div`
+  padding: 10px;
+  background-color: #f8f8f8;
+  width: 100%;
+  margin-bottom: 10px;
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
-`;
-
-const UnidadeTitle = styled.h4`
-  margin: 0;
-  font-size: 1rem;
-`;
-
-const DeleteButton = styled.button`
-  background-color: transparent;
-  border: none;
-  color: ${props => props.theme.colors.danger || 'red'};
-  cursor: pointer;
-  font-size: 1.25rem;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
   
-  &:hover {
-    background-color: rgba(255, 0, 0, 0.1);
+  @media (min-width: 768px) {
+    width: calc(50% - 5px);
   }
 `;
 
-const AddButton = styled(Button)`
-  margin-top: 1rem;
+const UnidadeSelect = styled(SelectField)`
+  flex: 3;
+  margin-right: 10px;
+`;
+
+const UnidadeInput = styled(Input)`
+  flex: 1;
+  width: 80px;
+  margin-right: 10px;
+`;
+
+const RemoveButton = styled(Button)`
+  padding: 5px 10px;
+  font-size: 12px;
+  background-color: #ff0000;
+`;
+
+const ActionButtons = styled.div`
+  display: flex;
+  gap: 10px;
+`;
+
+const SuccessMessage = styled.div`
+  background-color: #4CAF50;
+  color: white;
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 20px;
 `;
 
 const ZeroHumForm = () => {
@@ -146,7 +108,8 @@ const ZeroHumForm = () => {
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
   const [arquivo, setArquivo] = useState(null);
-  const [unidades, setUnidades] = useState([]);
+  const [unidades, setUnidades] = useState([{ nome: '', quantidade: 1 }]);
+  const [apiError, setApiError] = useState(null);
 
   // Lista de unidades disponíveis no sistema
   const unidadesDisponiveis = [
@@ -186,6 +149,12 @@ const ZeroHumForm = () => {
 
   // Função para remover uma unidade
   const removerUnidade = (index) => {
+    if (unidades.length === 1) {
+      // Não remover se é a única unidade
+      alert('É necessário informar pelo menos uma unidade.');
+      return;
+    }
+
     const novasUnidades = [...unidades];
     novasUnidades.splice(index, 1);
     setUnidades(novasUnidades);
@@ -198,17 +167,18 @@ const ZeroHumForm = () => {
     setUnidades(novasUnidades);
   };
 
-  // Validação de formulário
+  // Validação de formulário com Yup
   const validationSchema = Yup.object({
     nome: Yup.string().required('Nome é obrigatório'),
     email: Yup.string().email('E-mail inválido').required('E-mail é obrigatório'),
     titulo: Yup.string().required('Título é obrigatório'),
-    data_entrega: Yup.date().required('Data de entrega é obrigatória').min(new Date(), 'A data de entrega não pode ser anterior a hoje'),
+    data_entrega: Yup.date().required('Data de entrega é obrigatória'),
     formato: Yup.string().required('Formato é obrigatório'),
     cor_impressao: Yup.string().required('Cor de impressão é obrigatória'),
     impressao: Yup.string().required('Tipo de impressão é obrigatório'),
-    observacoes: Yup.string()
   });
+
+  // Configuração do Formik
   const formik = useFormik({
     initialValues: {
       nome: '',
@@ -220,389 +190,372 @@ const ZeroHumForm = () => {
       cor_impressao: 'PB',
       impressao: '1_LADO'
     },
-    validationSchema,    onSubmit: async (values) => {
-      setLoading(true);
-      try {
-        // Validar se pelo menos uma unidade foi adicionada
-        if (unidades.length === 0) {
-          alert('É necessário adicionar pelo menos uma unidade.');
-          setLoading(false);
-          return;
-        }
+    validationSchema,
+    // Versão corrigida do método onSubmit no formulário ZeroHum
 
-        // Validar se todas as unidades têm nome selecionado
-        const unidadesInvalidas = unidades.filter(u => !u.nome);
-        if (unidadesInvalidas.length > 0) {
-          alert('Todas as unidades precisam ter um nome selecionado.');
-          setLoading(false);
-          return;
-        }
-        
-        // Logging para depuração - verificar unidades
-        console.log("Verificando unidades antes do envio:");
-        unidades.forEach((unidade, index) => {
-          console.log(`Unidade ${index + 1}: Nome=${unidade.nome}, Quantidade=${unidade.quantidade}`);
-          
-          // Verificar se os dados da unidade são válidos
-          if (!unidade.nome || unidade.nome === "") {
-            console.error(`Erro: A unidade ${index + 1} não tem um nome válido.`);
-          }
-          if (!unidade.quantidade || unidade.quantidade < 1) {
-            console.error(`Erro: A unidade ${index + 1} não tem uma quantidade válida.`);
-          }
-        });
-
-        const formData = new FormData();
-        
-        // Formatar a data para o formato esperado pelo Django (YYYY-MM-DD)
-        const formattedValues = {
-          ...values,
-          data_entrega: values.data_entrega ? new Date(values.data_entrega).toISOString().split('T')[0] : ''
-        };
-        
-        // Adicionar todos os campos base do formulário ao FormData
-        Object.keys(formattedValues).forEach(key => {
-          formData.append(key, formattedValues[key]);
-        });        // Enviar unidades no formato correto para o Django REST Framework
-        // O DRF espera um formato específico para nested serializers em multipart/form-data
-        unidades.forEach((unidade, index) => {
-          formData.append(`unidades[${index}][nome]`, unidade.nome);
-          formData.append(`unidades[${index}][quantidade]`, unidade.quantidade);
-          console.log(`Adicionando unidade[${index}]:`, unidade.nome, unidade.quantidade);
-        });
-        
-        // Debug - mostrar todos os campos do FormData após adicionar as unidades
-        console.log("FormData completo após adicionar unidades:");
-        for (let [key, value] of formData.entries()) {
-          console.log(`${key}: ${value}`);
-        }
-        
-        // Adicionar o arquivo PDF se existir
-        if (arquivo) {
-          formData.append('arquivo', arquivo);
-        }
-          // Mostrar dados que estão sendo enviados (para depuração)
-        console.log('Enviando dados para o backend:');
-        console.log('Unidades:', unidades);
-        
-        // Mostrar todos os campos do FormData
-        console.log('Conteúdo do FormData:');
-        for (let [key, value] of formData.entries()) {
-          console.log(`${key}: ${value}`);
-        }        console.log("Enviando para a API com URL correta");
-        
-        // Enviar para a API - corrigido para o endpoint correto
-        const response = await api.post('/formularios/zerohum/', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          }
-        });
-        
-        console.log('Formulário enviado com sucesso:', response.data);
-        setSaved(true);
-        setTimeout(() => {
-          setSaved(false);
-          navigate('/forms');
-        }, 3000);      } catch (error) {
-        console.error("Erro ao salvar formulário:", error);
-        
-        // Mostrar mensagem de erro mais detalhada, se disponível
-        let errorMessage = 'Erro ao enviar o formulário. Por favor, tente novamente.';
-        
-        if (error.response) {
-          // O servidor respondeu com um status de erro
-          console.error('Dados da resposta de erro:', error.response.data);
-          console.error('Status do erro:', error.response.status);
-          
-          if (error.response.data && error.response.data.errors) {
-            const errorDetails = Object.entries(error.response.data.errors)
-              .map(([field, errors]) => `${field}: ${errors.join(', ')}`)
-              .join('\n');
-            
-            errorMessage = `Erro na validação dos dados: \n${errorDetails}`;
-          } else if (error.response.data && error.response.data.detail) {
-            errorMessage = error.response.data.detail;
-          }
-        }
-        
-        alert(errorMessage);
-      } finally {
-        setLoading(false);
-      }
+onSubmit: async (values) => {
+  setLoading(true);
+  setApiError(null);
+  try {
+    // Validar se pelo menos uma unidade tem nome selecionado
+    const unidadesValidas = unidades.filter(u => u.nome);
+    if (unidadesValidas.length === 0) {
+      alert('É necessário informar pelo menos uma unidade com nome selecionado.');
+      setLoading(false);
+      return;
     }
+
+    // Formatar a data para o formato esperado pelo Django (YYYY-MM-DD)
+    const formattedDate = values.data_entrega
+      ? new Date(values.data_entrega).toISOString().split('T')[0]
+      : '';
+
+    // Preparar os dados das unidades
+    const unidadesData = unidadesValidas.map(u => ({
+      nome: u.nome,
+      quantidade: parseInt(u.quantidade) || 1
+    }));
+
+    console.log('Unidades para envio:', unidadesData);
+
+    // Se houver arquivo, usar FormData para enviar tudo junto
+    let dataToSend;
+    if (arquivo) {
+      // *** IMPORTANTE: USE O FORMDATA CORRETAMENTE PARA ARQUIVOS ***
+      dataToSend = new FormData();
+      
+      // Adicionar todos os campos de texto
+      dataToSend.append('nome', values.nome);
+      dataToSend.append('email', values.email);
+      dataToSend.append('titulo', values.titulo);
+      dataToSend.append('data_entrega', formattedDate);
+      dataToSend.append('observacoes', values.observacoes || '');
+      dataToSend.append('formato', values.formato);
+      dataToSend.append('cor_impressao', values.cor_impressao);
+      dataToSend.append('impressao', values.impressao);
+      
+      // Adicionar unidades como JSON string
+      dataToSend.append('unidades', JSON.stringify(unidadesData));
+
+      // *** ALTERAÇÃO IMPORTANTE: ADICIONE O ARQUIVO COMO ÚLTIMO CAMPO ***
+      // E certifique-se de que o nome usado aqui corresponde ao campo no serializer
+      dataToSend.append('arquivo', arquivo);
+
+      console.log('FormData criado com os seguintes campos:');
+      for (let pair of dataToSend.entries()) {
+        console.log(`${pair[0]}: ${pair[0] === 'arquivo' ? 'Arquivo PDF' : pair[1]}`);
+      }
+    } else {
+      // Envio como JSON se não houver arquivo
+      dataToSend = {
+        nome: values.nome,
+        email: values.email,
+        titulo: values.titulo,
+        data_entrega: formattedDate,
+        observacoes: values.observacoes || '',
+        formato: values.formato,
+        cor_impressao: values.cor_impressao,
+        impressao: values.impressao,
+        unidades: unidadesData
+      };
+      console.log('Enviando JSON:', dataToSend);
+    }
+
+    // *** IMPORTANTE: NÃO DEFINA O Content-Type QUANDO ENVIAR FormData ***
+    // Deixe o navegador definir o Content-Type automaticamente, incluindo o boundary
+    const config = arquivo 
+      ? { headers: {} } // Não definir Content-Type para FormData
+      : { headers: { 'Content-Type': 'application/json' } }; // Apenas para JSON
+
+    console.log('Enviando requisição...');
+    const response = await api.post('/formularios/zerohum/', dataToSend, config);
+    
+    console.log('Resposta do servidor:', response.data);
+
+    // Se houver link de visualização, mostrar ao usuário
+    if (response.data.web_view_link) {
+      console.log('Link de visualização do PDF:', response.data.web_view_link);
+    }
+
+    // Se houver link de download, disponibilizar ao usuário
+    if (response.data.link_download) {
+      console.log('Link de download do PDF:', response.data.link_download);
+    }
+
+    setSaved(true);
+    setTimeout(() => {
+      navigate('/forms');
+    }, 2000);
+  } catch (error) {
+    console.error('Erro ao enviar formulário:', error);
+    if (error.response) {
+      console.error('Detalhes do erro:', error.response.data);
+      setApiError({
+        status: error.response.status,
+        data: error.response.data
+      });
+    } else {
+      setApiError({
+        message: 'Erro de conexão. Tente novamente mais tarde.'
+      });
+    }
+  } finally {
+    setLoading(false);
+  }
+},
+
   });
 
-  // Handler para upload de arquivo
-  const handleFileChange = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      // Validar se é um PDF
-      if (file.type !== 'application/pdf') {
-        alert('Por favor, envie apenas arquivos PDF.');
-        return;
-      }
-      setArquivo(file);
+  // Handler para o campo de arquivo
+  const handleArquivoChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      setArquivo(e.target.files[0]);
     }
   };
 
   return (
     <MainLayout>
-      <PageHeader>
-        <PageTitle>Formulário ZeroHum</PageTitle>
-        <div>
-          <Button variant="outlined" onClick={() => navigate('/forms')} style={{ marginRight: '1rem' }}>
-            Voltar
-          </Button>
-          <Button 
-            type="button" 
-            onClick={() => formik.handleSubmit()}
-            disabled={loading}
-          >
-            {loading ? 'Salvando...' : 'Salvar'}
-          </Button>
-        </div>
-      </PageHeader>
+      <FormContainer>
+        <Card>
+          <CardHeader>
+            <CardTitle>Formulário ZeroHum</CardTitle>
+          </CardHeader>
+          <CardBody>
+            {saved && (
+              <SuccessMessage>Formulário enviado com sucesso! Redirecionando...</SuccessMessage>
+            )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Informações do Formulário</CardTitle>
-        </CardHeader>
-        <CardBody>
-          <Form onSubmit={formik.handleSubmit}>
-            {/* Seção de Contato */}
-            <FormGroup>
-              <FormLabel>Informações de Contato</FormLabel>
-              <FormRow>
+            {apiError && (
+              <div style={{ color: 'red', marginBottom: '20px' }}>
+                <h4>Erro ao enviar formulário (Status: {apiError.status || 'Desconhecido'})</h4>
+                <pre style={{ background: '#f7f7f7', padding: '10px', overflowX: 'auto' }}>
+                  {JSON.stringify(apiError.data || apiError.message, null, 2)}
+                </pre>
+              </div>
+            )}
+
+            <form onSubmit={formik.handleSubmit} encType="multipart/form-data">
+              {/* Informações básicas */}
+              <InputGroup>
+                <Label htmlFor="nome">Nome</Label>
                 <Input
                   id="nome"
                   name="nome"
-                  label="Nome"
+                  placeholder="Seu nome"
                   value={formik.values.nome}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
-                  error={formik.touched.nome && formik.errors.nome}
-                  required
                 />
+                {formik.touched.nome && formik.errors.nome && (
+                  <ErrorMessage>{formik.errors.nome}</ErrorMessage>
+                )}
+              </InputGroup>
+
+              <InputGroup>
+                <Label htmlFor="email">E-mail</Label>
                 <Input
                   id="email"
                   name="email"
-                  label="E-mail"
                   type="email"
+                  placeholder="Seu e-mail"
                   value={formik.values.email}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
-                  error={formik.touched.email && formik.errors.email}
-                  required
                 />
-              </FormRow>
-            </FormGroup>
-              {/* Seção Unidades */}
-            <FormGroup>
-              <FormLabel>Informações das Unidades</FormLabel>
-              
-              {/* Lista de unidades adicionadas */}
-              {unidades.map((unidade, index) => (
-                <UnidadeItem key={index}>
-                  <UnidadeHeader>
-                    <UnidadeTitle>Unidade {index + 1}</UnidadeTitle>
-                    <DeleteButton 
-                      type="button" 
-                      onClick={() => removerUnidade(index)}
-                      title="Remover unidade"
-                    >
-                      ×
-                    </DeleteButton>
-                  </UnidadeHeader>
-                  <FormRow>
-                    <FormGroup>
-                      <FormLabel>Nome da Unidade</FormLabel>
-                      <Select
-                        value={unidade.nome}
-                        onChange={(e) => atualizarUnidade(index, 'nome', e.target.value)}
-                        required
-                      >
-                        <option value="">Selecione uma unidade</option>
-                        {unidadesDisponiveis.map((opcao) => (
-                          <option key={opcao.valor} value={opcao.valor}>
-                            {opcao.label}
-                          </option>
-                        ))}
-                      </Select>
-                    </FormGroup>
-                    <FormGroup>
-                      <FormLabel>Quantidade</FormLabel>
-                      <Input
-                        type="number"
-                        min="1"
-                        value={unidade.quantidade}
-                        onChange={(e) => atualizarUnidade(index, 'quantidade', parseInt(e.target.value) || 1)}
-                        required
-                      />
-                    </FormGroup>
-                  </FormRow>
-                </UnidadeItem>
-              ))}
-              
-              {/* Botão para adicionar nova unidade */}
-              <AddButton 
-                type="button" 
-                variant="outlined" 
-                onClick={adicionarUnidade}
-                title="Adicionar nova unidade"
-              >
-                + Adicionar Unidade
-              </AddButton>
-              
-              {unidades.length === 0 && (
-                <div style={{ marginTop: '0.5rem', color: '#666' }}>
-                  Por favor, adicione pelo menos uma unidade.
-                </div>
-              )}
-            </FormGroup>
-            
-            {/* Seção de Configuração de Impressão */}
-            <FormGroup>
-              <FormLabel>Configurações de Impressão</FormLabel>
-              <FormRow>
+                {formik.touched.email && formik.errors.email && (
+                  <ErrorMessage>{formik.errors.email}</ErrorMessage>
+                )}
+              </InputGroup>
+
+              <InputGroup>
+                <Label htmlFor="titulo">Título</Label>
                 <Input
                   id="titulo"
                   name="titulo"
-                  label="Título"
+                  placeholder="Título do documento"
                   value={formik.values.titulo}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
-                  error={formik.touched.titulo && formik.errors.titulo}
-                  required
                 />
+                {formik.touched.titulo && formik.errors.titulo && (
+                  <ErrorMessage>{formik.errors.titulo}</ErrorMessage>
+                )}
+              </InputGroup>
+
+              <InputGroup>
+                <Label htmlFor="data_entrega">Data de Entrega</Label>
                 <Input
                   id="data_entrega"
                   name="data_entrega"
-                  label="Data de Entrega"
                   type="date"
                   value={formik.values.data_entrega}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
-                  error={formik.touched.data_entrega && formik.errors.data_entrega}
-                  required
                 />
-              </FormRow>
-              
-              <FormRow>
-                <FormGroup>
-                  <FormLabel>Formato</FormLabel>
-                  <Select
-                    id="formato"
-                    name="formato"
-                    value={formik.values.formato}
-                    onChange={formik.handleChange}
-                    onBlur={formik.handleBlur}
-                    error={formik.touched.formato && formik.errors.formato}
-                  >
-                    <option value="A4">A4</option>
-                    <option value="A5">A5</option>
-                    <option value="A3">A3</option>
-                    <option value="CARTA">Carta</option>
-                    <option value="OFICIO">Ofício</option>
-                    <option value="OUTRO">Outro</option>
-                  </Select>
-                  {formik.touched.formato && formik.errors.formato && (
-                    <div className="error-text">{formik.errors.formato}</div>
-                  )}
-                </FormGroup>
-                
-                <FormGroup>
-                  <FormLabel>Cor de Impressão</FormLabel>
-                  <Select
-                    id="cor_impressao"
-                    name="cor_impressao"
-                    value={formik.values.cor_impressao}
-                    onChange={formik.handleChange}
-                    onBlur={formik.handleBlur}
-                    error={formik.touched.cor_impressao && formik.errors.cor_impressao}
-                  >
-                    <option value="PB">Preto e Branco</option>
-                    <option value="COLOR">Colorido</option>
-                  </Select>
-                  {formik.touched.cor_impressao && formik.errors.cor_impressao && (
-                    <div className="error-text">{formik.errors.cor_impressao}</div>
-                  )}
-                </FormGroup>
-                
-                <FormGroup>
-                  <FormLabel>Tipo de Impressão</FormLabel>
-                  <Select
-                    id="impressao"
-                    name="impressao"
-                    value={formik.values.impressao}
-                    onChange={formik.handleChange}
-                    onBlur={formik.handleBlur}
-                    error={formik.touched.impressao && formik.errors.impressao}
-                  >
-                    <option value="1_LADO">Um lado</option>
-                    <option value="2_LADOS">Frente e verso</option>
-                    <option value="LIVRETO">Livreto</option>
-                  </Select>
-                  {formik.touched.impressao && formik.errors.impressao && (
-                    <div className="error-text">{formik.errors.impressao}</div>
-                  )}
-                </FormGroup>
-              </FormRow>
-              
-              <FormGroup>
-                <FormLabel>Observações</FormLabel>
+                {formik.touched.data_entrega && formik.errors.data_entrega && (
+                  <ErrorMessage>{formik.errors.data_entrega}</ErrorMessage>
+                )}
+              </InputGroup>
+
+              {/* Detalhes do documento */}
+              <InputGroup>
+                <Label htmlFor="formato">Formato</Label>
+                <SelectField
+                  id="formato"
+                  name="formato"
+                  value={formik.values.formato}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                >
+                  <option value="A4">A4</option>
+                  <option value="A3">A3</option>
+                  <option value="CARTA">Carta</option>
+                  <option value="OFICIO">Ofício</option>
+                </SelectField>
+                {formik.touched.formato && formik.errors.formato && (
+                  <ErrorMessage>{formik.errors.formato}</ErrorMessage>
+                )}
+              </InputGroup>
+
+              <InputGroup>
+                <Label htmlFor="cor_impressao">Cor da Impressão</Label>
+                <SelectField
+                  id="cor_impressao"
+                  name="cor_impressao"
+                  value={formik.values.cor_impressao}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                >
+                  <option value="PB">Preto e branco</option>
+                  <option value="COLORIDO">Colorido</option>
+                </SelectField>
+                {formik.touched.cor_impressao && formik.errors.cor_impressao && (
+                  <ErrorMessage>{formik.errors.cor_impressao}</ErrorMessage>
+                )}
+              </InputGroup>
+
+              <InputGroup>
+                <Label htmlFor="impressao">Tipo de Impressão</Label>
+                <SelectField
+                  id="impressao"
+                  name="impressao"
+                  value={formik.values.impressao}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                >
+                  <option value="1_LADO">Um lado</option>
+                  <option value="2_LADOS">Dois lados</option>
+                </SelectField>
+                {formik.touched.impressao && formik.errors.impressao && (
+                  <ErrorMessage>{formik.errors.impressao}</ErrorMessage>
+                )}
+              </InputGroup>
+
+              <InputGroup>
+                <Label htmlFor="observacoes">Observações</Label>
                 <TextArea
                   id="observacoes"
                   name="observacoes"
+                  placeholder="Observações adicionais"
                   value={formik.values.observacoes}
                   onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  error={formik.touched.observacoes && formik.errors.observacoes}
-                  placeholder="Informações adicionais sobre o formulário..."
                 />
-                {formik.touched.observacoes && formik.errors.observacoes && (
-                  <div className="error-text">{formik.errors.observacoes}</div>
-                )}
-              </FormGroup>
-            </FormGroup>
-            
-            {/* Seção de Upload de Arquivo */}
-            <FormGroup>
-              <FormLabel>Upload de Arquivo PDF</FormLabel>
-              <FileInput>
+              </InputGroup>
+
+              <InputGroup>
+                <Label htmlFor="arquivo">Arquivo PDF</Label>
                 <input
-                  type="file"
                   id="arquivo"
                   name="arquivo"
-                  accept="application/pdf"
-                  onChange={handleFileChange}
+                  type="file"
+                  accept=".pdf"
+                  onChange={handleArquivoChange}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    fontSize: '16px',
+                    marginTop: '5px',
+                  }}
                 />
-                {arquivo && (
-                  <div style={{marginTop: '0.5rem'}}>
-                    Arquivo selecionado: {arquivo.name}
-                  </div>
-                )}
-              </FileInput>
-            </FormGroup>
-          </Form>
-        </CardBody>
-        <CardFooter>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            {saved && <span style={{ color: 'green' }}>Formulário salvo com sucesso!</span>}
-            <div>
-              <Button variant="outlined" onClick={() => navigate('/forms')} style={{ marginRight: '1rem' }}>
-                Cancelar
-              </Button>
-              <Button 
-                type="button" 
-                onClick={() => formik.handleSubmit()}
-                disabled={loading}
-              >
-                {loading ? 'Salvando...' : 'Salvar'}
-              </Button>
-            </div>
-          </div>
-        </CardFooter>
-      </Card>
+                <small style={{ display: 'block', marginTop: '5px', color: '#666' }}>
+                  Somente arquivos PDF são aceitos
+                </small>
+              </InputGroup>
+
+              {/* Unidades */}
+              <InputGroup>
+                <Label>Unidades</Label>
+                <UnidadeContainer>
+                  {unidades.map((unidade, index) => (
+                    <UnidadeItem key={index}>
+                      <div style={{ flex: '1', marginBottom: '10px' }}>
+                        <Label htmlFor={`unidade-nome-${index}`}>Nome da Unidade</Label>
+                        <SelectField
+                          id={`unidade-nome-${index}`}
+                          value={unidade.nome}
+                          onChange={(e) => atualizarUnidade(index, 'nome', e.target.value)}
+                        >
+                          <option value="">Selecione uma unidade</option>
+                          {unidadesDisponiveis.map((opcao) => (
+                            <option key={opcao.valor} value={opcao.valor}>
+                              {opcao.label}
+                            </option>
+                          ))}
+                        </SelectField>
+                      </div>
+                      <div style={{ width: '120px', marginLeft: '10px', marginBottom: '10px' }}>
+                        <Label htmlFor={`unidade-qtd-${index}`}>Quantidade</Label>
+                        <Input
+                          type="number"
+                          id={`unidade-qtd-${index}`}
+                          min="1"
+                          value={unidade.quantidade}
+                          onChange={(e) => atualizarUnidade(index, 'quantidade', e.target.value)}
+                        />
+                      </div>
+                      <div style={{ marginLeft: '10px', alignSelf: 'flex-end', marginBottom: '10px' }}>
+                        <Button
+                          type="button"
+                          onClick={() => removerUnidade(index)}
+                          variant="danger"
+                          size="sm"
+                        >
+                          Remover
+                        </Button>
+                      </div>
+                    </UnidadeItem>
+                  ))}
+                </UnidadeContainer>
+                <Button
+                  type="button"
+                  onClick={adicionarUnidade}
+                  variant="secondary"
+                >
+                  + Adicionar Unidade
+                </Button>
+              </InputGroup>
+
+              <ActionButtons>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => navigate('/forms')}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={loading || saved}
+                >
+                  {loading ? 'Enviando...' : 'Enviar Formulário'}
+                </Button>
+              </ActionButtons>
+            </form>
+          </CardBody>
+        </Card>
+      </FormContainer>
     </MainLayout>
   );
 };

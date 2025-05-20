@@ -15,10 +15,11 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Token ${token}`;
     }
-    
-    // Depuração para API POST requests
+      // Depuração para API POST requests
     if (config.method === 'post') {
-      console.log(`API Request para ${config.url}:`, config.data);
+      // Mostrar a URL completa com baseURL e path
+      console.log(`API Request para ${config.baseURL}${config.url}:`, config.data);
+      console.log('Headers:', config.headers);
       
       // Para dados do tipo FormData, fazer log de cada campo
       if (config.data instanceof FormData) {
