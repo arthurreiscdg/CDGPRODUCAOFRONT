@@ -35,9 +35,8 @@ const ZeroHumForm = () => {
   const [unidades, setUnidades] = useState([
     { nome: 'ARARUAMA', quantidade: 1 }
   ]);
-
-  // Estado para o arquivo
-  const [arquivo, setArquivo] = useState(null);
+  // Estado para os arquivos
+  const [arquivos, setArquivos] = useState([]);
   
   // Estados para feedback
   const [loading, setLoading] = useState(false);
@@ -50,11 +49,23 @@ const ZeroHumForm = () => {
     setFormData({ ...formData, [name]: value });
   };
 
-  // Handler para mudança no arquivo
+  // Handler para adicionar arquivos
   const handleFileChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      setArquivo(e.target.files[0]);
+    if (e.target.files && e.target.files.length > 0) {
+      // Convertendo FileList para Array e adicionando aos arquivos existentes
+      const novoArquivos = [...arquivos, ...Array.from(e.target.files)];
+      setArquivos(novoArquivos);
+      
+      // Limpar o input após seleção para permitir selecionar o mesmo arquivo novamente
+      e.target.value = '';
     }
+  };
+  
+  // Handler para remover um arquivo
+  const handleRemoveFile = (index) => {
+    const novosArquivos = [...arquivos];
+    novosArquivos.splice(index, 1);
+    setArquivos(novosArquivos);
   };
 
   // Handlers para unidades
@@ -76,7 +87,6 @@ const ZeroHumForm = () => {
       setError('É necessário pelo menos uma unidade');
     }
   };
-
   // Função para submeter o formulário
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -91,8 +101,8 @@ const ZeroHumForm = () => {
       return;
     }
 
-    if (!arquivo) {
-      setError('Por favor, selecione um arquivo PDF');
+    if (arquivos.length === 0) {
+      setError('Por favor, selecione pelo menos um arquivo PDF');
       setLoading(false);
       return;
     }
@@ -105,8 +115,11 @@ const ZeroHumForm = () => {
       formDataSubmit.append(key, value);
     });
 
-    // Adicionar arquivo
-    formDataSubmit.append('arquivo', arquivo);
+    // Adicionar múltiplos arquivos
+    arquivos.forEach((arquivo, index) => {
+      formDataSubmit.append('arquivos', arquivo);
+      formDataSubmit.append('arquivos_nomes', arquivo.name);
+    });
 
     // Adicionar unidades
     formDataSubmit.append('unidades', JSON.stringify(unidades));
@@ -117,9 +130,7 @@ const ZeroHumForm = () => {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
-      });
-
-      setSuccess(`Formulário enviado com sucesso! Código de operação: ${response.data.cod_op}`);
+      });      setSuccess(`Formulário enviado com sucesso! Código de operação: ${response.data.cod_op}`);
       
       // Resetar formulário após envio bem-sucedido
       setFormData({
@@ -130,11 +141,7 @@ const ZeroHumForm = () => {
         gramatura: '75g',
         grampos: '',
       });
-      setArquivo(null);
-      
-      // Resetar o input de arquivo
-      const fileInput = document.getElementById('arquivo-input');
-      if (fileInput) fileInput.value = '';
+      setArquivos([]);
 
       setTimeout(() => {
         navigate('/');
@@ -160,10 +167,10 @@ const ZeroHumForm = () => {
           formData={formData} 
           handleChange={handleChange} 
         />
-        
-        <FileSection 
+          <FileSection 
           handleFileChange={handleFileChange} 
-          arquivo={arquivo} 
+          handleRemoveFile={handleRemoveFile}
+          arquivos={arquivos} 
         />
         
         <UnitsSection 
