@@ -129,7 +129,6 @@ const SuccessMessage = styled.div`
 const ZeroHumForm = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-
   // Estado para os campos do formulário
   const [formData, setFormData] = useState({
     nome: user?.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : '',
@@ -140,6 +139,8 @@ const ZeroHumForm = () => {
     formato: 'A4',
     cor_impressao: 'PB',
     impressao: '1_LADO',
+    gramatura: '75g',
+    grampos: '',
   });
 
   // Estados para unidades
@@ -282,13 +283,14 @@ const ZeroHumForm = () => {
       });
 
       setSuccess(`Formulário enviado com sucesso! Código de operação: ${response.data.cod_op}`);
-      
-      // Resetar formulário após envio bem-sucedido
+        // Resetar formulário após envio bem-sucedido
       setFormData({
         ...formData,
         titulo: '',
         data_entrega: '',
         observacoes: '',
+        gramatura: '75g',
+        grampos: '',
       });
       setArquivo(null);
       
@@ -367,9 +369,7 @@ const ZeroHumForm = () => {
                 fullWidth
               />
             </Field>
-          </FieldRow>
-
-          <FieldRow>
+          </FieldRow>          <FieldRow>
             <Field>
               <Label>Formato</Label>
               <Select name="formato" value={formData.formato} onChange={handleChange}>
@@ -399,6 +399,31 @@ const ZeroHumForm = () => {
                   </option>
                 ))}
               </Select>
+            </Field>
+          </FieldRow>
+
+          <FieldRow>
+            <Field>
+              <Input
+                label="Gramatura do Papel"
+                name="gramatura"
+                type="text"
+                value={formData.gramatura}
+                onChange={handleChange}
+                placeholder="Ex: 75g, 90g"
+                fullWidth
+              />
+            </Field>
+            <Field>
+              <Input
+                label="Grampos"
+                name="grampos"
+                type="text"
+                value={formData.grampos}
+                onChange={handleChange}
+                placeholder="Ex: 2, 3, canoa"
+                fullWidth
+              />
             </Field>
           </FieldRow>
 
