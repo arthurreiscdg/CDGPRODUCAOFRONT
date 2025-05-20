@@ -4,7 +4,8 @@ const api = axios.create({
   // URL da API Django
   baseURL: 'http://localhost:8000/api',
   headers: {
-    'Content-Type': 'application/json',
+    // Não definimos Content-Type global para permitir que o Axios configure automaticamente
+    // para uploads de arquivos (multipart/form-data)
   },
 });
 
@@ -15,7 +16,19 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Token ${token}`;
     }
-      // Depuração para API POST requests
+    
+    // Importante: Define o Content-Type como 'application/json' apenas para dados que não são FormData
+    if (!(config.data instanceof FormData) && config.method !== 'get') {
+      config.headers['Content-Type'] = 'application/json';
+    }
+    
+    // Se for FormData, deixamos o navegador/axios definir o Content-Type automaticamente
+    // para que inclua o boundary necessário para o multipart/form-data
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+    }
+    
+    // Depuração para API POST requests
     if (config.method === 'post') {
       // Mostrar a URL completa com baseURL e path
       console.log(`API Request para ${config.baseURL}${config.url}:`, config.data);
@@ -25,7 +38,11 @@ api.interceptors.request.use(
       if (config.data instanceof FormData) {
         console.log('FormData contém:');
         for (let [key, value] of config.data.entries()) {
-          console.log(`${key}: ${value}`);
+          if (key === 'arquivo') {
+            console.log(`${key}: Arquivo (${value.name}, ${value.type}, ${value.size} bytes)`);
+          } else {
+            console.log(`${key}: ${value}`);
+          }
         }
       }
     }
